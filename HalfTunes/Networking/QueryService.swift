@@ -48,24 +48,33 @@ class QueryService {
   var tracks: [Track] = []
   var dataTask: URLSessionTask?
   
+  var lastSearchTerm: String?
+  
   //
   // MARK: - Type Alias
   //
   typealias JSONDictionary = [String: Any]
   typealias QueryResult = ([Track]?, String) -> Void
   
+  func getLastSearchTerm() -> String {
+    return lastSearchTerm!
+  }
+  
   //
   // MARK: - Internal Methods
   //
-  func getSearchResults(searchTerm: String, completion: @escaping QueryResult) {
+  func getSearchResults(searchTerm: String, pageNum: Int, pageLimit: Int, completion: @escaping QueryResult) {
     // TODO 3
     dataTask?.cancel()
+    lastSearchTerm = searchTerm
+    let offset = pageNum * pageLimit
     
     if var urlCompnents = URLComponents(string: "https://itunes.apple.com/search") {
-      urlCompnents.query = "media=music&entity=song&term=\(searchTerm)"
+      urlCompnents.query = "media=music&entity=song&term=\(searchTerm)&offset=\(offset)&limit=\(pageLimit)"
       guard let url = urlCompnents.url else {
         return
       }
+      print("query url=" + url.absoluteString)
       
       dataTask = defaultSession.dataTask(with: url) {
         [weak self] data, response, error in

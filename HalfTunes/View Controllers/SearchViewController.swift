@@ -43,6 +43,11 @@ class SearchViewController: UIViewController {
   
   let downloadService = DownloadService()
   let queryService = QueryService()
+  let pageLimit = 20
+  
+  var pageNum = 0
+  var hasMore = true
+  var loadMoreView:UIView?
   
   //
   // MARK: - IBOutlets
@@ -95,12 +100,51 @@ class SearchViewController: UIViewController {
     tableView.reloadRows(at: [IndexPath(row: row, section: 0)], with: .none)
   }
   
+  @objc func loadMore() {
+    print("try loadMore");
+    pageNum += 1
+    queryService.getSearchResults(searchTerm: queryService.getLastSearchTerm(), pageNum: pageNum, pageLimit:pageLimit) { [weak self] results, errorMessage in
+      UIApplication.shared.isNetworkActivityIndicatorVisible = false
+      
+      if let results = results {
+        self?.searchResults.append(contentsOf: results)
+        self?.tableView.reloadData()
+        // self?.tableView.setContentOffset(CGPoint.zero, animated: false)
+        self?.hasMore = results.count >= (self?.pageLimit ?? 20)
+      }
+      
+      if !errorMessage.isEmpty {
+        print("Search error: " + errorMessage)
+      }
+    }
+  }
+  
+  func setupInfiniteScrollingView() {
+    self.loadMoreView = UIView(frame: CGRect(x:0, y:self.tableView.contentSize.height,
+                                                     width:self.tableView.bounds.size.width, height:60))
+    self.loadMoreView!.autoresizingMask = UIView.AutoresizingMask.flexibleWidth
+
+    let activityViewIndicator = UIActivityIndicatorView(style: .white)
+    activityViewIndicator.color = UIColor.init(named: "dl-leaf")
+    let indicatorX = self.view.frame.width/2 - activityViewIndicator.frame.width/2
+    let indicatorY = self.loadMoreView!.frame.size.height/2 - activityViewIndicator.frame.height/2
+    activityViewIndicator.frame = CGRect(x:indicatorX, y:indicatorY,
+                                         width:activityViewIndicator.frame.width,
+                                         height:activityViewIndicator.frame.height)
+    activityViewIndicator.startAnimating()
+    self.loadMoreView!.addSubview(activityViewIndicator)
+  }
+  
   //
   // MARK: - View Controller
   //
   override func viewDidLoad() {
     super.viewDidLoad()
     tableView.tableFooterView = UIView()
+    let searchTextField = searchBar.value(forKey: "searchField") as? UITextField
+    searchTextField?.backgroundColor = .white
+    
+    setupInfiniteScrollingView()
     
     // TODO 7
     downloadService.downloadsSession = downloadsSession
@@ -121,13 +165,14 @@ extension SearchViewController: UISearchBarDelegate {
     
     UIApplication.shared.isNetworkActivityIndicatorVisible = true
     
-    queryService.getSearchResults(searchTerm: searchText) { [weak self] results, errorMessage in
+    queryService.getSearchResults(searchTerm: searchText, pageNum: pageNum, pageLimit:pageLimit) { [weak self] results, errorMessage in
       UIApplication.shared.isNetworkActivityIndicatorVisible = false
       
       if let results = results {
         self?.searchResults = results
         self?.tableView.reloadData()
         self?.tableView.setContentOffset(CGPoint.zero, animated: false)
+        self?.hasMore = results.count >= self?.pageLimit ?? 20
       }
       
       if !errorMessage.isEmpty {
@@ -185,6 +230,14 @@ extension SearchViewController: UITableViewDelegate {
   
   func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
     return 62.0
+  }
+  
+  func tableView(_ tableView: UITableView, willDisplay cell: UITableViewCell, forRowAt indexPath: IndexPath) {
+    if (indexPath.row == searchResults.count - 1) && hasMore {
+      tableView.tableFooterView = self.loadMoreView
+      loadMore()
+    }
+    
   }
 }
 
