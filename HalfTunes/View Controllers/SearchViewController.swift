@@ -107,10 +107,20 @@ class SearchViewController: UIViewController {
       UIApplication.shared.isNetworkActivityIndicatorVisible = false
       
       if let results = results {
+        // self?.tableView.tableFooterView = nil
         self?.searchResults.append(contentsOf: results)
         self?.tableView.reloadData()
         // self?.tableView.setContentOffset(CGPoint.zero, animated: false)
         self?.hasMore = results.count >= (self?.pageLimit ?? 20)
+        
+        if !self!.hasMore {
+          let noMoreLabel = UILabel(frame: CGRect(x:0, y:self!.tableView.contentSize.height,
+                                                  width:self!.tableView.bounds.size.width, height:60))
+          noMoreLabel.text = "-- no more data --"
+          noMoreLabel.textColor = .gray
+          noMoreLabel.textAlignment = .center
+          self?.tableView.tableFooterView = noMoreLabel
+        }
       }
       
       if !errorMessage.isEmpty {
